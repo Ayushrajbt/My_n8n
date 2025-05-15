@@ -1,0 +1,2424 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "Appointment"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        1290
+      ],
+      "id": "0fb7c678-4d6d-4e07-a725-833fac4173a0",
+      "name": "AWS DynamoDB",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n// Get current date in IST\nconst now = new Date();\n// Adjust to IST (+5:30)\nconst istOffset = 5.5 * 60 * 60 * 1000; // 5.5 hours in milliseconds\nconst nowIST = new Date(now.getTime() + (istOffset + now.getTimezoneOffset() * 60 * 1000));\nconst currentHour = nowIST.getHours();\nconst currentDate = nowIST.toISOString().split(\"T\")[0]; // get current date in YYYY-MM-DD format\nconsole.log('=== DEBUG INFO ===');\nconsole.log('Current date (YYYY-MM-DD) in IST:', currentDate);\nconsole.log('Current hour in IST:', currentHour);\nconsole.log('Server time (local timezone):', now.toString());\nconsole.log('Adjusted time (IST):', nowIST.toString());\nconsole.log('Total items to filter:', items.length);\n\nconst filteredItems = items.filter((item, index) => {\n  console.log(`\\n--- Processing item ${index} (${item.json?.PK || 'unknown'}) ---`);\n  \n  // Extract appointment date from Appointment_Data (no nested 'M' property)\n  const appointmentDate = item.json?.Appointment_Data?.date;\n  console.log('Item appointment_date:', appointmentDate);\n  console.log('Current date (IST):', currentDate);\n  console.log('Date matches?', appointmentDate === currentDate);\n  \n  // First check if appointment_date matches current date\n  if (appointmentDate !== currentDate) {\n    console.log(':x: Rejected: Date doesn\\'t match current date');\n    return false;\n  }\n  \n  // Debug End_time availability\n  const endTime = item.json?.Appointment_Data?.end_time;\n  console.log('Has end_time?', !!endTime);\n  \n  // Then check if end_time exists\n  if (!endTime) {\n    console.log(':x: Rejected: No end_time field');\n    return false;\n  }\n  \n  try {\n    // Parse the time string (format: \"HH:MM:SS\")\n    console.log('end_time value:', endTime);\n    const hourString = endTime.split(\":\")[0];\n    const appointmentHour = parseInt(hourString, 10);\n    console.log('Parsed appointment hour:', appointmentHour);\n    console.log('Current hour (IST):', currentHour);\n    console.log('Hour matches?', appointmentHour === currentHour);\n    \n    // Check if the hour matches current hour\n    const result = appointmentHour === currentHour;\n    if (result) {\n      console.log(':white_tick: Accepted: Appointment matches current hour');\n    } else {\n      console.log(':x: Rejected: Hour doesn\\'t match current hour');\n    }\n    return result;\n  } catch (error) {\n    // Handle any parsing errors\n    console.error(':x: Error parsing time:', error);\n    return false;\n  }\n});\n\nconsole.log('\\n=== FILTERING COMPLETE ===');\nconsole.log('Filtered items count:', filteredItems.length);\nif (filteredItems.length > 0) {\n  console.log('Filtered items:', JSON.stringify(filteredItems, null, 2));\n}\n\nreturn filteredItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2820,
+        1290
+      ],
+      "id": "46625f32-69f3-4505-b26a-77029f94e979",
+      "name": "Code",
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3260,
+        220
+      ],
+      "id": "00abc9a6-bb28-4269-9a19-b92d23d73624",
+      "name": "Schedule Trigger1"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "Appointment"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3040,
+        220
+      ],
+      "id": "b55e1d60-c6ff-4d69-81e1-508aafbfe21b",
+      "name": "AWS DynamoDB1",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst currentDate = new Date().toISOString().split(\"T\")[0];\n\nconst filteredItems = items.filter((item) => {\n  try {\n    // Accessing the nested date field inside Appointment_Data\n    const rawDate = item?.json?.Appointment_Data?.date;\n    if (!rawDate) return false;\n\n    // Convert the raw date to an ISO format without the time part\n    const appointmentDate = new Date(rawDate).toISOString().split(\"T\")[0];\n    return appointmentDate === currentDate;\n  } catch (err) {\n    console.error(\"Error processing item:\", item, err);\n    return false;\n  }\n});\n\nreturn filteredItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2820,
+        220
+      ],
+      "id": "17976146-0d76-4c25-811d-065251586a33",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "sendTo": "=ayushrajvaidya@bitcot.com",
+        "subject": "=Appointment Reminder",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Appointment Reminder</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            color: #333;\n            margin: 20px;\n            padding: 0;\n            background-color: #f4f4f4;\n        }\n        .container {\n            background-color: #ffffff;\n            padding: 20px;\n            border-radius: 8px;\n            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n            max-width: 600px;\n            margin: 0 auto;\n        }\n        h2 {\n            color: #007bff;\n            font-size: 24px;\n        }\n        p {\n            font-size: 16px;\n            line-height: 1.5;\n        }\n        .highlight {\n            color: #007bff;\n            font-weight: bold;\n        }\n        .footer {\n            font-size: 14px;\n            color: #777;\n            margin-top: 20px;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h2>Appointment Reminder</h2>\n        <p>Dear <span class=\"highlight\">{{ $json.name }}</span>,</p>\n\n        <p>This is a friendly reminder that your appointment is scheduled for today</p>\n\n\n        <p><strong>Mode:</strong> <span class=\"highlight\">{{ $('AWS DynamoDB2').item.json.Appointment_Data.mode }}</span></p>\n        <p><strong>Location:</strong> <span class=\"highlight\">{{ $('AWS DynamoDB2').item.json.Appointment_Data.location }}</span></p>\n        <p><strong>Date:</strong> <span class=\"highlight\">{{ $('AWS DynamoDB2').item.json.Appointment_Data.date }}</span></p>\n        <p><strong>Time:</strong> <span class=\"highlight\">{{ $('AWS DynamoDB2').item.json.Appointment_Data.start_time }}</span></p>\n        <p>We look forward to seeing you. If you need to reschedule or have any questions, feel free to contact us.</p>\n\n        <div class=\"footer\">\n            <p>Best regards,<br>Your Healthcare Team</p>\n        </div>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -2680,
+        880
+      ],
+      "id": "b9433a8d-8eba-4bee-aa64-9e8950148d91",
+      "name": "Gmail1",
+      "webhookId": "30c132b9-33f7-42de-bc24-2e793512704b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0Gwe3G9gWRDUnkIx",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a **Visit Summary** for the patient using the following data:\n### **Symptom Data:**\n- **Primary Symptom:** {{ $json.symptom_data.primary_symptom }}\n- **Severity:** {{ $json.symptom_data.severity }}\n- **Pain Location:** {{ $json.symptom_data.pain_location }}\n- **Additional Symptoms:** {{ $json.symptom_data.additional_symptoms }}\n- **Triage Recommendation:** {{ $json.symptom_data.triage_recommendatio }}\n### **Medcal History:**\nCondition : {{ $json.medical_history.conditions }}\nAllergies : {{ $json.medical_history.allergies }}\n\n### **Instructions:**\n- **Summarize the primary symptoms** (e.g., pain location, severity, and additional symptoms).\n- **Generate a recommendation** based on the patient's condition, Medical History and symptoms.\n- Ensure the summary is **concise and professional**.\n\nMANDATORY INSTRUTION: Always frame the response in second person ('you') rather than third person ('the patient'). Speak as if directly talking to the user. Strictly follow.\n\nProvide me Output in below format only once : \n- **Visit Summary** : \"Visit Summary\"\n- **PK:** {{ $json.PK }}\n- **SK:** {{ $json.SK }}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -1940,
+        1115
+      ],
+      "id": "ecb3ef9c-f5d8-4a2a-b2c0-a25bb18c0e2b",
+      "name": "AI Agent",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :patientId AND #t IN (:symptomType, :medicalhistoryType, :patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":symptomType",
+              "value": "Symptom"
+            },
+            {
+              "attribute": ":medicalhistoryType",
+              "value": "MedicalHistory"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2320,
+        900
+      ],
+      "id": "6746c0e5-f37b-45d9-8e32-d73f1f856282",
+      "name": "AWS DynamoDB5",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2600,
+        1290
+      ],
+      "id": "7dd956ac-4c0a-46a2-b207-d674f40a0a6d",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -1912,
+        1335
+      ],
+      "id": "868f23d1-9ca8-4a85-ac46-6c564f5d7452",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "bVcvhu6IvU2CWtDO",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :cognitoID AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":cognitoID",
+              "value": "={{ $json.profile_data.cognito_user_id }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "User"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3260,
+        -40
+      ],
+      "id": "ac20ed15-2cff-4195-800a-cea580dadb4c",
+      "name": "AWS DynamoDB9",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "batchSize": 3,
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3540,
+        240
+      ],
+      "id": "d89a425b-9d5e-4071-93e6-8f3a40a2ff0d",
+      "name": "Loop Over Items1",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "=Patient#f5c4868c-e6d8-4158-8168-2c571c1f78a7"
+            },
+            {
+              "fieldId": "SK",
+              "fieldValue": "Patient#f5c4868c-e6d8-4158-8168-2c571c1f78a7"
+            },
+            {
+              "fieldId": "k",
+              "fieldValue": "={{ $json.Appointment_Data }}"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -1160,
+        900
+      ],
+      "id": "f45e8432-ea15-491c-bbb9-badb3a02ee93",
+      "name": "AWS DynamoDB6",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all input items\nconst items = $input.all();\n\n// Initialize variables to store the extracted data\nlet symptomData = {};\nlet profileData = {};\nlet medicalHistoryData = {};\n\n// Debug information\nconsole.log(\"Total items:\", items.length);\nitems.forEach((item, index) => {\n  console.log(`Item ${index} structure:`, JSON.stringify(item.json, null, 2));\n});\n\n// Loop through each item to find the relevant data\nitems.forEach(item => {\n  // For symptom data\n  if (item.json?.SK?.includes('Symptom')) {\n    symptomData = {\n      duration: item.json.duration || item.json.symptom_data?.duration || '',\n      severity: item.json.severity || item.json.symptom_data?.severity || '',\n      triage_recommendatio: item.json.triage_recommendatio || item.json.symptom_data?.triage_recommendatio || '',\n      pain_location: item.json.pain_location || item.json.symptom_data?.pain_location || '',\n      additional_symptoms: item.json.additional_symptoms || item.json.symptom_data?.additional_symptoms || null,\n      primary_symptom: item.json.primary_symptom || item.json.symptom_data?.primary_symptom || ''\n    };\n  }\n  \n  // For profile data\n  else if (item.json?.SK === 'Profile') {\n    profileData = {\n      gender: item.json.gender || item.json.profile_data?.gender || '',\n      name: item.json.name || item.json.profile_data?.name || '',\n      cognito_user_id: item.json.cognito_user_id || item.json.profile_data?.cognito_user_id || ''\n    };\n  }\n  \n  // For medical history data\n  else if (item.json?.SK?.includes('Medhx')) {\n    medicalHistoryData = {\n      conditions: item.json.conditions || item.json.medical_history?.conditions || '',\n      allergies: item.json.allergies || item.json.medical_history?.allergies || '',\n      medications: item.json.medications || item.json.medical_history?.medications || ''\n    };\n  }\n});\n\n// Get the PK from any of the items (they should all have the same PK)\nconst PK = items[0]?.json?.PK || '';\n\n\n// Create a consolidated object with all the extracted data\nconst consolidatedData = {\n  symptom_data: symptomData,\n  profile_data: profileData,\n  medical_history: medicalHistoryData,\n  PK: PK,\n  SK: `followup#${Date.now()}`\n};\n\n// Return a single item to prevent multiple executions\nreturn [{ json: consolidatedData }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2160,
+        1115
+      ],
+      "id": "28d9e3dd-6631-49ab-9b57-5a462257932b",
+      "name": "Code2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\t\"Visit Summary\": \"visit summary\",\n\t\"PK\": \"PK\",\n  \"SK\":\"SK\"\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -1792,
+        1335
+      ],
+      "id": "40f80c51-82c3-42e9-a453-a1273b87966f",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Generate a **Follow-Up Plan** for the patient based on the following **Visit Summary**:\nPlease Find the Today Date in MM/YY/DD Format: Todays Date\n### **Visit Summary:**\n- **Summary:** {{ $json['Visit Summary'] }}\n\n### **Dynamic Follow-Up Objectives:**\nKindly use the Visit summary to generate below requirements : \n1. **Welcome/Summary Message:**\n Generate a Message to Thank the patient for the visit, summarize next steps, and confirm that the AI will check in.\n\n2. **Day 2 Symptom Check:**\n   - **Message:** Ask the patient how they are feeling, especially.For example, if the symptom is a **headache**, inquire about its intensity or if it has worsened.\n\n\n4. **Day 4 Lifestyle Follow-up:**\n   - **Message:** Ask the patient about their **diet**, **exercise**, and **hydration**. Provide related tips based on their condition.\n\n\n7. **Day 14 Visit Reminder:**\n   - **Message:** Remind the patient of their **follow-up appointment** with the doctor.\n\n\n\n### **Final Output Format:**\n\nEnsure the following output structure, generated dynamically based on the Visit Summary:\nappointment_date:{{ $json.appointment_date }}\nDay2:{{ $json.day2 }}\nDay4:{{ $json.day4 }}\nDay14:{{ $json.day14 }}\n```json\n{\n  \"Follow-Up Plan\": [\n    {\n      \"task\": \"Welcome/Summary Message\",\n      \"date_time\":\"{{ $json.appointment_date }}\",\n      \"message\": \"Welcome/Summary Message\"\n    },\n    {\n      \"task\": \"Day 2 Symptom/Vitals Check\",\n      \"date_time\": \"{{ $json.day2 }}\",\n      \"message\": \"Day 2 Symptom Check\"\n    },\n    {\n      \"task\": \"Day 4 Lifestyle Follow-up\",\n      \"date_time\": \"{{ $json.day4 }}\",\n      \"message\": \"Day 4 Lifestyle Follow-up\"\n    },\n    {\n      \"task\": \"Day 14 Visit Reminder\",\n      \"date_time\": \"{{ $json.day14 }}\",\n      \"message\": \"Day 14 Visit Reminder\"\n    }\n  ]\n}\n",
+        "hasOutputParser": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        -904,
+        1115
+      ],
+      "id": "78ac9f97-365b-4097-be5c-885977321749",
+      "name": "AI Agent1",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        -876,
+        1335
+      ],
+      "id": "8033d242-d358-476c-828a-8d531b33a5bb",
+      "name": "OpenAI Chat Model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "bVcvhu6IvU2CWtDO",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n\"Welcome/Summary Message\" : \"Welcome/Summary Message\",\n\"Day 2 Symptom Check\":\"Day 2 Symptom Check\",\n\"Day 2 BP Entry Reminder\": \"Day 2 BP Entry Reminder\",\n\"Day 4 Lifestyle Follow-up\":\"Day 4 Lifestyle Follow-up\",\n\"Day 7 Checkpoint\":\"Day 7 Checkpoint\",\n\"Day 14 Visit Reminder\":\"Day 14 Visit Reminder:\",\n\n\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -3260,
+        3365
+      ],
+      "id": "f1a1efba-74ca-4f58-9bb5-e0b1a7d7dc79",
+      "name": "Structured Output Parser1"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": ""
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -3260,
+        2605
+      ],
+      "id": "7705befb-c66e-42cd-a655-2578610019b5",
+      "name": "Structured Output Parser2"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "={{ $('Code3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=SK",
+              "fieldValue": "={{ $json.date_time }}#{{ $('Loop Over Items').all()[0].json.SK"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $json.task }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $json.message }}"
+            },
+            {
+              "fieldId": "Status",
+              "fieldValue": "Pending"
+            },
+            {
+              "fieldId": "EntityType",
+              "fieldValue": "FollowUp"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        1120
+      ],
+      "id": "7226ecf6-767b-43f7-8324-a620f4f0c51f",
+      "name": "AWS DynamoDB7",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const appointmentDate = new Date(\n$('Loop Over Items').first().json.Appointment_Data.date,\n);\nconst day2 = new Date(appointmentDate.getTime() + 2 * 24 * 60 * 60 * 1000);\nconst day4 = new Date(appointmentDate.getTime() + 4 * 24 * 60 * 60 * 1000);\nconst day14 = new Date(appointmentDate.getTime() + 14 * 24 * 60 * 60 * 1000);\nconst items = $input.all().map((item) => item.json);\nconst updatedItems = items.map((item) => ({\n  ...item,\nappointment_date: appointmentDate.toISOString().split('T')[0],  day2: day2.toISOString().split('T')[0],\n  day4: day4.toISOString().split('T')[0],\n  day14: day14.toISOString().split('T')[0],\n}));\nreturn updatedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1060,
+        1120
+      ],
+      "id": "d41d9b41-865f-44f6-9202-612cc7829f5f",
+      "name": "Code3",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "=ayushrajvaidya@bitcot.com",
+        "subject": "=Welcome to HealthCare Solutions",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Thank You for Visiting</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            color: #333;\n            margin: 20px;\n            padding: 0;\n            background-color: #f4f4f4;\n        }\n        .container {\n            background-color: #ffffff;\n            padding: 20px;\n            border-radius: 8px;\n            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n            max-width: 600px;\n            margin: 0 auto;\n        }\n        h2 {\n            color: #007bff;\n            font-size: 24px;\n        }\n        p {\n            font-size: 16px;\n            line-height: 1.5;\n        }\n        .highlight {\n            color: #007bff;\n            font-weight: bold;\n        }\n        .footer {\n            font-size: 14px;\n            color: #777;\n            margin-top: 20px;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h2>Welcome Back!</h2>\n        <p>Dear <span class=\"highlight\">{{ $json.name }}</span>,</p>\n\n        <p>We hope your appointment went smoothly. Here’s a summary of your visit:</p>\n\n        <p><strong>Visit Summary:</strong></p>\n        <p>{{ $('Code3').item.json['Visit Summary'] }}</p>\n\n        <p>If you have any questions or need further assistance, feel free to contact us. We’re here to help you every step of the way in your healthcare journey.</p>\n\n        <div class=\"footer\">\n            <p>Best regards,<br>Your Healthcare Team</p>\n        </div>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -88,
+        1490
+      ],
+      "id": "88b9d547-7447-429a-a4fb-528afc1fa84f",
+      "name": "Gmail3",
+      "webhookId": "30c132b9-33f7-42de-bc24-2e793512704b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0Gwe3G9gWRDUnkIx",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :patientId AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -308,
+        1415
+      ],
+      "id": "0e255046-9746-45d8-ade3-fe4fc2457596",
+      "name": "AWS DynamoDB13",
+      "alwaysOutputData": true,
+      "executeOnce": true,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :cognitoID AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":cognitoID",
+              "value": "={{ $json.profile_data.cognito_user_id }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "User"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3260,
+        -560
+      ],
+      "id": "adedd10d-cfd1-46a6-8355-d059ac9ab924",
+      "name": "AWS DynamoDB14",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3240,
+        1800
+      ],
+      "id": "e3310e9b-9d9f-408b-b7b7-b0ff1d49c152",
+      "name": "Follow Up"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "={{ $('Code3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=SK",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][1].date_time }}#{{ $('Loop Over Items').all()[0].json.SK"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][1].task }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][1].message }}"
+            },
+            {
+              "fieldId": "Status",
+              "fieldValue": "Pending"
+            },
+            {
+              "fieldId": "EntityType",
+              "fieldValue": "FollowUp"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        960,
+        720
+      ],
+      "id": "7f0c1b73-54ea-4902-914a-3531765b5e61",
+      "name": "AWS DynamoDB12",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "FollowUp"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -300,
+        2880
+      ],
+      "id": "f03ffbb2-ae61-4872-bfe4-a20f11cb277a",
+      "name": "AWS DynamoDB4",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "={{ $json.currentDate }}#{{ $('Loop Over Items2').item.json.SK }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "SK"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3260,
+        2845
+      ],
+      "id": "ec05022f-a6b3-4234-9d67-4691f7db0d1b",
+      "name": "AWS DynamoDB15",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -3740,
+        2300
+      ],
+      "id": "1759faa7-7cac-4b0b-8e5f-e8471d356101",
+      "name": "Loop Over Items2",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "=ayushrajvaidya@bitcot.com",
+        "subject": "={{ $('AWS DynamoDB10').item.json.Task }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Thank You for Visiting</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            color: #333;\n            margin: 20px;\n            padding: 0;\n            background-color: #f4f4f4;\n        }\n        .container {\n            background-color: #ffffff;\n            padding: 20px;\n            border-radius: 8px;\n            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n            max-width: 600px;\n            margin: 0 auto;\n        }\n        h2 {\n            color: #007bff;\n            font-size: 24px;\n        }\n        p {\n            font-size: 16px;\n            line-height: 1.5;\n        }\n        .highlight {\n            color: #007bff;\n            font-weight: bold;\n        }\n        .footer {\n            font-size: 14px;\n            color: #777;\n            margin-top: 20px;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h2>Welcome Back!</h2>\n        <p>Dear {{ $json.name }} <span class=\"highlight\"></span>,</p>\n\n\n        <p><strong>{{ $('AWS DynamoDB10').item.json.Message }}</strong></p>\n        <p></p>\n\n        <p>If you have any questions or need further assistance, feel free to contact us. We’re here to help you every step of the way in your healthcare journey.</p>\n\n        <div class=\"footer\">\n            <p>Best regards,<br>Your Healthcare Team</p>\n        </div>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -2500,
+        1820
+      ],
+      "id": "6feb8cf2-f786-4bfd-a424-98ba67533d68",
+      "name": "Gmail4",
+      "webhookId": "30c132b9-33f7-42de-bc24-2e793512704b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0Gwe3G9gWRDUnkIx",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :patientId AND EntityType = :patientType",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "indexName": "",
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              },
+              {}
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2980,
+        2140
+      ],
+      "id": "ab3be5f7-29c4-4dd6-93e6-c1a422c6ffce",
+      "name": "AWS DynamoDB16",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :cognitoID AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":cognitoID",
+              "value": "={{ $json.profile_data.cognito_user_id }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "User"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3260,
+        3605
+      ],
+      "id": "58de0621-e2e8-482d-b47f-f47e2c141f15",
+      "name": "AWS DynamoDB17",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "={{ $('Code3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=SK",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][3].date_time }}#{{ $('Loop Over Items').all()[0].json.SK"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][3].task }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][3].message }}"
+            },
+            {
+              "fieldId": "Status",
+              "fieldValue": "Pending"
+            },
+            {
+              "fieldId": "Entitytype",
+              "fieldValue": "FollowUp"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        1080,
+        960
+      ],
+      "id": "66bacf3c-4aab-4fb3-9ba5-32ec2e1279ea",
+      "name": "AWS DynamoDB19",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"Follow-Up Plan\": [\n    {\n      \"task\": \"Welcome/Summary Message\",\n      \"date_time\": \"appointment_date\",\n      \"message\": \"Welcome/Summary Message\"\n    },\n    {\n      \"task\": \"Day 2 Symptom/Vitals Check\",\n      \"date_time\": \"Day2\",\n      \"message\": \"Day 2 Symptom Check\"\n    },\n    {\n      \"task\": \"Day 4 Lifestyle Follow-up\",\n      \"date_time\": \"Day4\",\n      \"message\": \"Day 4 Lifestyle Follow-up\"\n    },\n    {\n      \"task\": \"Day 14 Visit Reminder\",\n      \"date_time\": \"Day14\",\n      \"message\": \"Day 14 Visit Reminder\"\n    }\n  ]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        -756,
+        1335
+      ],
+      "id": "d594dea4-a5ec-4809-b4ff-0bc242521a0b",
+      "name": "Structured Output Parser3"
+    },
+    {
+      "parameters": {
+        "jsCode": "const currentDate = new Date();\nreturn { currentDate: currentDate.toISOString().split('T')[0] };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        3865
+      ],
+      "id": "13f174f5-ea5e-489a-ab8f-0b53ec2fa153",
+      "name": "Code6",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "={{ $('Code3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=SK",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][0].date_time }}#{{ $('Loop Over Items').all()[0].json.SK"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][0].task }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $json.output[\"Follow-Up Plan\"][0].message }}"
+            },
+            {
+              "fieldId": "Status",
+              "fieldValue": "Pending"
+            },
+            {
+              "fieldId": "EntityType",
+              "fieldValue": "FollowUp"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        1140
+      ],
+      "id": "43a6235c-21bc-47d0-ad4c-6d6db35c1c6b",
+      "name": "AWS DynamoDB21",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "PK",
+              "fieldValue": "={{ $('Code3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=SK",
+              "fieldValue": "={{ $('AI Agent1').item.json.output[\"Follow-Up Plan\"][0].date_time }}#{{ $('Loop Over Items').all()[0].json.SK"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $('AI Agent1').item.json.output[\"Follow-Up Plan\"][0].task }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $('AI Agent1').item.json.output[\"Follow-Up Plan\"][0].message }}"
+            },
+            {
+              "fieldId": "Status",
+              "fieldValue": "Completed"
+            },
+            {
+              "fieldId": "EntityType",
+              "fieldValue": "FollowUp"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        132,
+        1490
+      ],
+      "id": "d8ebe844-c2e1-421f-8c5d-8bad6883e54c",
+      "name": "AWS DynamoDB23",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "SK",
+              "fieldValue": "={{ $('AWS DynamoDB10').item.json.SK }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $('AWS DynamoDB10').item.json.Message }}"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $('AWS DynamoDB10').item.json.Task }}"
+            },
+            {
+              "fieldId": "=Status",
+              "fieldValue": "Completed"
+            },
+            {
+              "fieldId": "=PK",
+              "fieldValue": "={{ $('AWS DynamoDB10').item.json.PK }}"
+            },
+            {
+              "fieldId": "=EntityType",
+              "fieldValue": "={{ $('AWS DynamoDB10').item.json.EntityType }}"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2280,
+        1820
+      ],
+      "id": "9783d309-63e2-4942-ad8a-5c855ca5da70",
+      "name": "AWS DynamoDB20",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst filteredItems = items.filter((item) => item?.json?.Status === \"Pending\");\nreturn filteredItems.map((item) => item.json);\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        3105
+      ],
+      "id": "4b3b42ed-9c83-4681-b9db-56227d24af43",
+      "name": "Code7"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :patientId AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2840,
+        500
+      ],
+      "id": "30a61e4a-f7b4-422e-b846-7e9fb7cababe",
+      "name": "AWS DynamoDB8",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        400
+      ],
+      "id": "2ddff32c-b856-464d-ac54-567cebdde4a6",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst currentDate = new Date().toISOString().split(\"T\")[0]; // Get current date in 'YYYY-MM-DD' format\n\nconst filteredItems = items\n  .filter((item) => item?.json?.Status !== \"Completed\") // Filter out completed tasks\n  .filter((item) => {\n    const dateInSK = item?.json?.SK.split(\"#\")[0]; // Extract date before '#' in SK value\n    return dateInSK === currentDate; // Check if it matches the current date\n  });\n\nreturn filteredItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        2345
+      ],
+      "id": "baeca4e9-0f2b-4338-88f2-2aa6026c6cec",
+      "name": "Code8"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p AND Appointment_Data.#d = :today",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "Appointment"
+            },
+            {
+              "attribute": ":today",
+              "value": "={{ $today.toISODate() }}"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              },
+              {
+                "key": "#d",
+                "value": "date"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3080,
+        880
+      ],
+      "id": "3629d410-54b3-45f6-9a85-424b59030d94",
+      "name": "AWS DynamoDB2",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst currentDate = new Date().toISOString().split(\"T\")[0];\n\nconst filteredItems = items.filter((item) => {\n  try {\n    // Accessing the nested date field inside Appointment_Data\n    const rawDate = item?.json?.Appointment_Data?.date;\n    if (!rawDate) return false;\n\n    // Convert the raw date to an ISO format without the time part\n    const appointmentDate = new Date(rawDate).toISOString().split(\"T\")[0];\n    return appointmentDate === currentDate;\n  } catch (err) {\n    console.error(\"Error processing item:\", item, err);\n    return false;\n  }\n});\n\nreturn filteredItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        -300
+      ],
+      "id": "6de1b8ae-ee93-4f40-94b9-9ca0cdebc727",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3300,
+        880
+      ],
+      "id": "502f7cd3-bdeb-47a1-9aa4-9bb85342560c",
+      "name": "Appointment Reminder"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p AND begins_with(SK, :today) AND #s <> :completed",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "FollowUp"
+            },
+            {
+              "attribute": ":today",
+              "value": "={{ $today.toISODate() }}"
+            },
+            {
+              "attribute": ":completed",
+              "value": "Completed"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              },
+              {
+                "key": "#s",
+                "value": "Status"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3000,
+        1820
+      ],
+      "id": "fca1ac04-b1d9-4399-9d56-f190680b7fd2",
+      "name": "AWS DynamoDB10",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 10-19 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3260,
+        1290
+      ],
+      "id": "9560869a-d3bc-4c9e-a724-4697a6507825",
+      "name": "Comprehensive Workflow"
+    },
+    {
+      "parameters": {
+        "path": "72e820c4-4063-44ed-9ebd-34d55002e5b7",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        4385
+      ],
+      "id": "17dbc138-aeed-4e5c-9c49-101a230262d5",
+      "name": "Webhook",
+      "webhookId": "72e820c4-4063-44ed-9ebd-34d55002e5b7"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -3260,
+        5165
+      ],
+      "id": "8ded531e-eb3d-46b5-a114-ef089d8bb028",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d9057b0b-8b07-448f-87af-aea2876975b2",
+              "name": "Name",
+              "value": "John Doe",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -3260,
+        4645
+      ],
+      "id": "d2ae2ee0-0ec2-41e5-a5b6-56a018a7a543",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :cognitoID AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":cognitoID",
+              "value": "={{ $json.profile_data.cognito_user_id }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "User"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "Type"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -3260,
+        4125
+      ],
+      "id": "2e7768d9-433e-4b12-9dad-e5d4964380ba",
+      "name": "AWS DynamoDB18",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -3260,
+        4905
+      ],
+      "id": "30f205b3-3441-476e-b6b8-ec7bb67cb5cd",
+      "name": "Code9",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {}
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -2680,
+        3200
+      ],
+      "id": "b64159fa-be6c-4440-8e6a-b1236f4795e0",
+      "name": "Follow Up1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -2240,
+        3200
+      ],
+      "id": "4708810e-3067-4953-b596-061459e57cd8",
+      "name": "Loop Over Items3",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "sendTo": "=ayushrajvaidya@bitcot.com",
+        "subject": "={{ $('Loop Over Items3').item.json.Task }}",
+        "message": "=<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n    <meta charset=\"UTF-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>Thank You for Visiting</title>\n    <style>\n        body {\n            font-family: Arial, sans-serif;\n            color: #333;\n            margin: 20px;\n            padding: 0;\n            background-color: #f4f4f4;\n        }\n        .container {\n            background-color: #ffffff;\n            padding: 20px;\n            border-radius: 8px;\n            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);\n            max-width: 600px;\n            margin: 0 auto;\n        }\n        h2 {\n            color: #007bff;\n            font-size: 24px;\n        }\n        p {\n            font-size: 16px;\n            line-height: 1.5;\n        }\n        .highlight {\n            color: #007bff;\n            font-weight: bold;\n        }\n        .footer {\n            font-size: 14px;\n            color: #777;\n            margin-top: 20px;\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <h2>Welcome Back!</h2>\n        <p>Dear {{ $json.name }} <span class=\"highlight\"></span>,</p>\n\n\n        <p><strong>{{ $('Loop Over Items3').item.json.Message }}</strong></p>\n        <p></p>\n\n        <p>If you have any questions or need further assistance, feel free to contact us. We’re here to help you every step of the way in your healthcare journey.</p>\n\n        <div class=\"footer\">\n            <p>Best regards,<br>Your Healthcare Team</p>\n        </div>\n    </div>\n</body>\n</html>\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        -1800,
+        3200
+      ],
+      "id": "1d24cfa5-ed3b-4bd9-88a0-51cf62c5f738",
+      "name": "Gmail",
+      "webhookId": "30c132b9-33f7-42de-bc24-2e793512704b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "0Gwe3G9gWRDUnkIx",
+          "name": "Gmail account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "=PK = :patientId AND #t IN (:patientType)",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2020,
+        3120
+      ],
+      "id": "16ae164c-473a-44bf-910a-b5b5cf7023cd",
+      "name": "AWS DynamoDB22",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "SK",
+              "fieldValue": "={{ $('Loop Over Items3').item.json.SK }}"
+            },
+            {
+              "fieldId": "Message",
+              "fieldValue": "={{ $('Loop Over Items3').item.json.Message }}"
+            },
+            {
+              "fieldId": "Task",
+              "fieldValue": "={{ $('Loop Over Items3').item.json.Task }}"
+            },
+            {
+              "fieldId": "=Status",
+              "fieldValue": "Completed"
+            },
+            {
+              "fieldId": "=PK",
+              "fieldValue": "={{ $('Loop Over Items3').item.json.PK }}"
+            },
+            {
+              "fieldId": "=EntityType",
+              "fieldValue": "={{ $('Loop Over Items3').item.json.EntityType }}"
+            }
+          ]
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -1580,
+        3200
+      ],
+      "id": "346b18c6-58a0-4e4d-bea7-b8ea9e44b0af",
+      "name": "AWS DynamoDB24",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "scan": true,
+        "filterExpression": "#t = :p AND begins_with(SK, :today) AND #s <> :completed",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":p",
+              "value": "FollowUp"
+            },
+            {
+              "attribute": ":today",
+              "value": "={{ $today.toISODate() }}"
+            },
+            {
+              "attribute": ":completed",
+              "value": "Completed"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#t",
+                "value": "EntityType"
+              },
+              {
+                "key": "#s",
+                "value": "Status"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2460,
+        3200
+      ],
+      "id": "de54f110-e08e-4c8b-997d-ba9da5c20653",
+      "name": "AWS DynamoDB11",
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract \"Follow-Up Plan\" from the first item in the input array\nconst followUpPlan = items[0].json.output[\"Follow-Up Plan\"];\n\n// Return as separate items, one for each task\nreturn followUpPlan.map(task => {\n  return {\n    json: task\n  };\n});\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -540,
+        1120
+      ],
+      "id": "c12295b8-924b-42b3-812c-9f0bdc124fc2",
+      "name": "Code5"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "keyConditionExpression": "#a = :a",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":a",
+              "value": "={{ $json.output.PK }}"
+            },
+            {
+              "attribute": ":p",
+              "value": "=Appointment"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "filterExpression": "#t = :p",
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#a",
+                "value": "PK"
+              },
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -1580,
+        1120
+      ],
+      "id": "6ead5e78-e14d-46b7-a8cb-219ff78db45e",
+      "name": "AWS DynamoDB25",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst updatedItems = items.map((item) => {\n  let appointmentData = {\n    date: item?.json?.Appointment_Data?.date,\n    mode: item?.json?.Appointment_Data?.mode,\n    reason: item?.json?.Appointment_Data?.reason,\n    start_time: item?.json?.Appointment_Data?.start_time,\n    updated_at: item?.json?.Appointment_Data?.updated_at,\n    end_time: item?.json?.Appointment_Data?.end_time,\n    created_at: item?.json?.Appointment_Data?.created_at,\n    location: item?.json?.Appointment_Data?.location,\n    status: item?.json?.Appointment_Data?.status,\n  };\n  item.json.Appointment_Data = appointmentData;\n  return item;\n});\nreturn updatedItems;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1360,
+        1120
+      ],
+      "id": "f1332e7c-0ea7-4621-9c78-3ca3772d6517",
+      "name": "Code10"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "keyConditionExpression": "#a = :a",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":a",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":p",
+              "value": "=Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "filterExpression": "#t = :p",
+          "eanUi": {
+            "eanValues": [
+              {
+                "key": "#a",
+                "value": "PK"
+              },
+              {
+                "key": "#t",
+                "value": "EntityType"
+              }
+            ]
+          }
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2860,
+        880
+      ],
+      "id": "749cbac7-bfbc-46c8-9eff-89e8e1d73cdc",
+      "name": "AWS DynamoDB26",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "keyConditionExpression": "PK = :patientId",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":symptomType",
+              "value": "Symptom"
+            },
+            {
+              "attribute": ":medicalhistoryType",
+              "value": "MedicalHistory"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "filterExpression": "EntityType = :symptomType OR EntityType = :medicalhistoryType OR EntityType = :patientType"
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2380,
+        1160
+      ],
+      "id": "ece7c3c5-af8c-4d67-a464-07c81ddd5b0b",
+      "name": "AWS DynamoDB27",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableName": "hmo-ai-assist-dev-HealthCareTable",
+        "keyConditionExpression": " PK = :patientId",
+        "eavUi": {
+          "eavValues": [
+            {
+              "attribute": ":patientId",
+              "value": "={{ $json.PK }}"
+            },
+            {
+              "attribute": ":patientType",
+              "value": "Patient"
+            }
+          ]
+        },
+        "returnAll": true,
+        "options": {
+          "filterExpression": "EntityType = :patientType"
+        }
+      },
+      "type": "n8n-nodes-base.awsDynamoDb",
+      "typeVersion": 1,
+      "position": [
+        -2740,
+        1820
+      ],
+      "id": "3f9d684f-ace4-4fbc-a154-64d2c31b7900",
+      "name": "AWS DynamoDB28",
+      "alwaysOutputData": true,
+      "executeOnce": false,
+      "credentials": {
+        "aws": {
+          "id": "rfEnzn4WwgIUXlcC",
+          "name": "AWS account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "AWS DynamoDB": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger1": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB1": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        []
+      ]
+    },
+    "Gmail1": {
+      "main": [
+        []
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB25",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB5": {
+      "main": [
+        []
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AWS DynamoDB27",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB9": {
+      "main": [
+        []
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "AWS DynamoDB6": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent1": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB7": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail3": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AWS DynamoDB23",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB13": {
+      "main": [
+        [
+          {
+            "node": "Gmail3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB14": {
+      "main": [
+        []
+      ]
+    },
+    "Follow Up": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB4": {
+      "main": [
+        []
+      ]
+    },
+    "AWS DynamoDB15": {
+      "main": [
+        []
+      ]
+    },
+    "Loop Over Items2": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Gmail4": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB20",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB16": {
+      "main": [
+        []
+      ]
+    },
+    "AWS DynamoDB17": {
+      "main": [
+        []
+      ]
+    },
+    "Structured Output Parser3": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        []
+      ]
+    },
+    "Code7": {
+      "main": [
+        []
+      ]
+    },
+    "AWS DynamoDB8": {
+      "main": [
+        []
+      ]
+    },
+    "No Operation, do nothing": {
+      "main": [
+        []
+      ]
+    },
+    "Code8": {
+      "main": [
+        []
+      ]
+    },
+    "AWS DynamoDB2": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB26",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Appointment Reminder": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB10": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB28",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Comprehensive Workflow": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Follow Up1": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items3": {
+      "main": [
+        [],
+        [
+          {
+            "node": "AWS DynamoDB22",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "AWS DynamoDB24",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB22": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB11": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB25": {
+      "main": [
+        [
+          {
+            "node": "Code10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code10": {
+      "main": [
+        [
+          {
+            "node": "AWS DynamoDB6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB26": {
+      "main": [
+        [
+          {
+            "node": "Gmail1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB27": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AWS DynamoDB28": {
+      "main": [
+        [
+          {
+            "node": "Gmail4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a918f258-58fd-4e0b-bc37-dd993ecf65c8",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "bb35ad972d925a83ebe86464ddde230ec943d119a44efd6728109b5dbdd014ca"
+  },
+  "id": "uEUDEWag4GwQCB4Y",
+  "tags": []
+}
